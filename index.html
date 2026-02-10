@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Management</title>
+    <style>
+        :root {
+            --col-width: 220px; /* Fixed width for consistency */
+            --header-height: 50px;
+            --primary-color: #2c3e50;
+            --active-color: #e74c3c; /* Matches your Red Box */
+            --highlight-bg: #fadbd8;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #ecf0f1;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* Main Scrolling Container */
+        .miller-columns-container {
+            display: flex;
+            flex-direction: row;
+            height: 90%;
+            background: white;
+            border: 1px solid #bdc3c7;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            overflow-x: auto; /* Enables Horizontal Scroll */
+            overflow-y: hidden;
+            position: relative;
+            
+        }
+
+        /* Common Column Styles */
+        .column {
+            flex: 0 0 var(--col-width); /* Don't grow, don't shrink, fixed width */
+            border-right: 1px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            
+        }
+
+        /* --- THE MAGIC: FROZEN COLUMNS --- */
+        
+        /* 1st Table: Stuck to left edge (0px) */
+        .column:nth-child(1) {
+            position: sticky;
+            left: 0;
+            z-index: 10;
+            border-right: 2px solid #95a5a6; /* Visual separator */
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        /* 2nd Table: Stuck after 1st (220px) */
+        .column:nth-child(2) {
+            position: sticky;
+            left: var(--col-width);
+            z-index: 10;
+            border-right: 2px solid #95a5a6;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        /* 3rd Table: Stuck after 2nd (440px) */
+        .column:nth-child(3) {
+            position: sticky;
+            left: calc(var(--col-width) * 2);
+            z-index: 10;
+            border-right: 4px solid #7f8c8d; /* Thicker border to show end of "fixed" area */
+            box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Header Style */
+        .col-header {
+            height: var(--header-height);
+            background: #dcdde1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 2px solid #bdc3c7;
+        }
+
+        /* Scrollable List Area */
+        .col-list {
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        /* List Items */
+        .item {
+            padding: 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f1f1f1;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .item:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Selected State (The "Red Box" Item) */
+        .item.selected {
+            background-color: var(--highlight-bg);
+            border-left: 5px solid var(--active-color);
+            color: #c0392b;
+            font-weight: bold;
+        }
+
+        /* Dynamic Arrow */
+        .arrow { visibility: hidden; }
+        .item.selected .arrow { visibility: visible; }
+
+    </style>
+</head>
+<body>
+
+    <h2 style="margin-top: 0;">Database Management</h2>
+    <div class="miller-columns-container" id="app"></div>
+
+<script>
+    const container = document.getElementById('app');
+    
+    // Config: How many tables are "Frozen"?
+    const FROZEN_COUNT = 3; 
+
+    // Mock Data Generator
+    const getItems = (level, parentSelection) => {
+        const items = [];
+        const count = 15; // Generate enough items to force vertical scroll
+        for(let i=1; i<=count; i++) {
+            items.push(`Option ${level}-${i}`);
+        }
+        return items;
+    };
+
+    // State
+    let selections = [
+    "Option 1-1", // Default selection for Column 1
+    "Option 2-1"  // Default selection for Column 2
+];  // Stores selected items per level
+
+    function render() {
+        container.innerHTML = '';
+        
+        // Determine how many columns to show. 
+        // Always show at least 3 (per requirement). 
+        // If user selected deep, show length + 1.
+        let totalCols = Math.max(FROZEN_COUNT, selections.length + 1);
+
+        for (let i = 0; i < totalCols; i++) {
+            const col = document.createElement('div');
+            col.className = 'column';
+            
+            // Header
+            const header = document.createElement('div');
+            header.className = 'col-header';
+            
+            // Dynamic Header Titles
+            if(i === 0) header.innerText = "Coach Type";
+            else if(i === 1) header.innerText = "Table";
+            else if(i === 2) header.innerText = "CAR Doors";
+            else header.innerText = `Level ${i + 1}`;
+            
+            // Visual cue for Frozen vs Scrollable
+            if(i < FROZEN_COUNT) header.style.background = "#d5dbdb"; // Slightly darker for frozen
+            
+            col.appendChild(header);
+
+            // List
+            const list = document.createElement('div');
+            list.className = 'col-list';
+
+            // Get Data (Mocking data based on level)
+            const items = getItems(i + 1);
+            
+            items.forEach(text => {
+                const item = document.createElement('div');
+                item.className = 'item';
+                
+                // Check if this item is the selected one for this column
+                const isSelected = selections[i] === text;
+                if (isSelected) item.classList.add('selected');
+
+                item.innerHTML = `<span>${text}</span><span class="arrow">➤</span>`;
+                
+                item.onclick = () => {
+                    // 1. Set selection for this level
+                    selections[i] = text;
+                    // 2. Remove any deeper selections (branch change)
+                    selections = selections.slice(0, i + 1);
+                    // 3. Re-render
+                    render();
+                    
+                    // 4. If we are deep (past column 3), auto-scroll to the new column
+                    if (i >= FROZEN_COUNT - 1) {
+                        setTimeout(() => {
+                            // Scroll container to the very end
+                            container.scrollTo({
+                                left: container.scrollWidth,
+                                behavior: 'smooth'
+                            });
+                        }, 50);
+                    }
+                };
+                
+                list.appendChild(item);
+            });
+
+            col.appendChild(list);
+            container.appendChild(col);
+        }
+    }
+
+    // Initialize
+    render();
+
+</script>
+</body>
+</html>
